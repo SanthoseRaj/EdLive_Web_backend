@@ -34,19 +34,11 @@ import specialcareRoute from "./routes/specialCare.route.js"
 import stickynotesRoute from "./routes/stickynotes.route.js"
 import admissionRoute from "./routes/admission.route.js"
 
-// dotenv.config({
-//   path: path.resolve(path.dirname("../"), `.env.${process.env.NODE_ENV}`),
-// });
-
-dotenv.config();
-
-
+dotenv.config({
+  path: path.resolve(path.dirname("../"), `.env.${process.env.NODE_ENV}`),
+});
 const app = express();
-
-// const PORT = process.env.PORT;
-const PORT = process.env.PORT || 7500;
-
-
+const PORT = process.env.PORT;
 const __dirname = path.resolve();
 app.use(express.json({ limit: "5mb" }));
 app.set('trust proxy', 1);
