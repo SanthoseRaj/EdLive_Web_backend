@@ -121,16 +121,37 @@ app.use('/content', express.static(path.join(__dirname, 'content'), {
 //    console.log(req.cookies);
 // })
 
-if (process.env.NODE_ENV === "production") {
-  app.use(express.static(path.join(__dirname, "/frontend/build")));
+// if (process.env.NODE_ENV === "production") {
+//   app.use(express.static(path.join(__dirname, "/frontend/build")));
 
-  app.use("*", (req, res) => {
-    res.sendFile(path.resolve(__dirname, "frontend", "build", "index.html"));
-  });
-}
-app.listen(PORT, () => {
-  console.log(`Server is running in port ${process.env.REACT_APP_API_URL}:${PORT}`);
-  console.log(`Swagger docs available at ${process.env.REACT_APP_API_URL}:${PORT}/api-docs`);
-  //connectDB()
-  db.connectDBpg()
-})
+//   app.use("*", (req, res) => {
+//     res.sendFile(path.resolve(__dirname, "frontend", "build", "index.html"));
+//   });
+// }
+
+app.get("/", (req, res) => {
+  res.status(200).send("Backend is running successfully");
+});
+
+
+app.listen(PORT, async () => {
+  console.log(`Server is running on port ${PORT}`);
+  console.log(`Base URL: ${process.env.REACT_APP_API_URL}`);
+  console.log(`Swagger docs available at /api-docs`);
+
+  try {
+    await db.connectDBpg();
+    console.log("PostgreSQL connected successfully");
+  } catch (error) {
+    console.error("Error connecting to PostgreSQL:", error.message);
+  }
+});
+
+
+
+// app.listen(PORT, () => {
+//   console.log(`Server is running in port ${process.env.REACT_APP_API_URL}:${PORT}`);
+//   console.log(`Swagger docs available at ${process.env.REACT_APP_API_URL}:${PORT}/api-docs`);
+//   //connectDB()
+//   db.connectDBpg()
+// })
