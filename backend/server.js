@@ -16,36 +16,44 @@ import staffRoute from "./routes/staff.route.js"
 import studentRoute from "./routes/student.route.js";
 import settingRoute from "./routes/setting.route.js";
 import attendanceRoute from "./routes/attendance.route.js";
-import achievementRoute from "./routes/achivement.route.js" 
-import examRoute from "./routes/exam.route.js" 
-import paymentRoute from "./routes/payment.route.js" 
-import libraryRoute from "./routes/library.route.js" 
-import eventsholidaysRoute from "./routes/eventsholidays.route.js" 
-import messageRoute from "./routes/messages.route.js" 
+import achievementRoute from "./routes/achivement.route.js"
+import examRoute from "./routes/exam.route.js"
+import paymentRoute from "./routes/payment.route.js"
+import libraryRoute from "./routes/library.route.js"
+import eventsholidaysRoute from "./routes/eventsholidays.route.js"
+import messageRoute from "./routes/messages.route.js"
 import ptaRoute from "./routes/pta.route.js"
-import syllabusRoute from "./routes/syllabus.route.js" 
-import transportRoute from "./routes/transport.route.js" 
-import foodRoute from "./routes/food.route.js" 
-import quicknotesRoute from "./routes/quicknotes.route.js" 
-import resourcesRoute from "./routes/resources.route.js" 
-import coCurricularRoutes from "./routes/coCurricular.route.js" 
-import dashboardRoute from "./routes/dashboard.route.js" 
-import specialcareRoute from "./routes/specialCare.route.js" 
-import stickynotesRoute from "./routes/stickynotes.route.js" 
+import syllabusRoute from "./routes/syllabus.route.js"
+import transportRoute from "./routes/transport.route.js"
+import foodRoute from "./routes/food.route.js"
+import quicknotesRoute from "./routes/quicknotes.route.js"
+import resourcesRoute from "./routes/resources.route.js"
+import coCurricularRoutes from "./routes/coCurricular.route.js"
+import dashboardRoute from "./routes/dashboard.route.js"
+import specialcareRoute from "./routes/specialCare.route.js"
+import stickynotesRoute from "./routes/stickynotes.route.js"
 import admissionRoute from "./routes/admission.route.js"
 
-dotenv.config({
-  path: path.resolve(path.dirname("../"), `.env.${process.env.NODE_ENV}`),
-});
+// dotenv.config({
+//   path: path.resolve(path.dirname("../"), `.env.${process.env.NODE_ENV}`),
+// });
+
+dotenv.config();
+
+
 const app = express();
-const PORT = process.env.PORT;
+
+// const PORT = process.env.PORT;
+const PORT = process.env.PORT || 7500;
+
+
 const __dirname = path.resolve();
 app.use(express.json({ limit: "5mb" }));
 app.set('trust proxy', 1);
 // app.get("*", (req, res) => {
 //   const URL = req.protocol;
 // });
-const allowedOrigins = process.env.NODE_ENV === 'production'? ['http://ec2-13-233-120-62.ap-south-1.compute.amazonaws.com'] : ['http://localhost:5000', 'http://ec2-13-233-120-62.ap-south-1.compute.amazonaws.com'];
+const allowedOrigins = process.env.NODE_ENV === 'production' ? ['http://ec2-13-233-120-62.ap-south-1.compute.amazonaws.com'] : ['http://localhost:5000', 'http://ec2-13-233-120-62.ap-south-1.compute.amazonaws.com'];
 app.use(cookieParser());
 app.use(express.json());
 // app.use(cors({
@@ -58,9 +66,9 @@ app.use(cors({
   credentials: true
 }
 ));
-  app.use(express.urlencoded({
-    extended:true
-  }))
+app.use(express.urlencoded({
+  extended: true
+}))
 
 // Swagger configuration
 const swaggerOptions = {
@@ -79,7 +87,7 @@ const swaggerOptions = {
 const swaggerSpec = swaggerJsdoc(swaggerOptions);
 app.use(`/api-docs`, swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 app.use(`/api/auth`, authRoute);
-app.use("/api/users",userRoute)
+app.use("/api/users", userRoute)
 app.use(`/api/todos`, ToDoRoute);
 app.use(`/api/staff`, staffRoute);
 app.use(`/api/student`, studentRoute);
@@ -114,15 +122,15 @@ app.use('/content', express.static(path.join(__dirname, 'content'), {
 // })
 
 if (process.env.NODE_ENV === "production") {
-	app.use(express.static(path.join(__dirname, "/frontend/build")));
+  app.use(express.static(path.join(__dirname, "/frontend/build")));
 
-	app.use("*", (req, res) => {
-		res.sendFile(path.resolve(__dirname, "frontend", "build", "index.html"));
-	});
+  app.use("*", (req, res) => {
+    res.sendFile(path.resolve(__dirname, "frontend", "build", "index.html"));
+  });
 }
 app.listen(PORT, () => {
-    console.log(`Server is running in port ${process.env.REACT_APP_API_URL}:${PORT}`);
-    console.log(`Swagger docs available at ${process.env.REACT_APP_API_URL}:${PORT}/api-docs`);
+  console.log(`Server is running in port ${process.env.REACT_APP_API_URL}:${PORT}`);
+  console.log(`Swagger docs available at ${process.env.REACT_APP_API_URL}:${PORT}/api-docs`);
   //connectDB()
   db.connectDBpg()
 })
