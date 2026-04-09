@@ -109,9 +109,9 @@ const query = async (text, params) => {
   
       // Create user
       const result = await query(
-       `INSERT INTO users (username, fullname, email, password, usertype, phone_number)
- VALUES ($1, $2, $3, $4, $5, $6)
- RETURNING id, username, fullname, email, usertype, profile_img`,
+        `INSERT INTO users (username, fullname, email, password, usertype,phone_number)
+         VALUES ($1, $2, $3, $4, $5)
+         RETURNING id, username, fullname, email, usertype, profile_img`,
         [username, fullname, email, hashedPassword, usertype,phone_number]
       );
   
@@ -155,93 +155,90 @@ const query = async (text, params) => {
 //     }
 // }
 export const login = async (req, res) => {
-  try {
-    const { username, password } = req.body;
-
-    const result = await query(
-      `SELECT 
-        a.id, 
-        a.username, 
-        ARRAY_AGG(DISTINCT 
-          CASE 
+    try {
+      const { username, password } = req.body;
+      
+      const result = await query(
+        `SELECT 
+    a.id, 
+    a.username, 
+    ARRAY_AGG(DISTINCT 
+        CASE 
             WHEN a.usertype = 'Student' THEN st.full_name
             WHEN a.usertype = 'Teacher' THEN a.fullname
             ELSE a.fullname
-          END
-        ) AS fullname, 
-        a.email, 
-        a.usertype, 
-        a.created_at,
-        ARRAY_AGG(DISTINCT 
-          CASE 
+        END
+    ) AS fullname, 
+    a.email, 
+    a.usertype, 
+    a.created_at,
+    ARRAY_AGG(DISTINCT 
+        CASE 
             WHEN a.usertype = 'Student' THEN st.id
             WHEN a.usertype = 'Teacher' THEN b.id
             ELSE NULL
-          END
-        ) AS staff_id,
-        STRING_AGG(DISTINCT s.subject_name, ', ') AS subject,
-        ARRAY_AGG(DISTINCT cm.class || ' - ' || cm.section) AS classes,
-        a.profile_img,
-        a.password
-      FROM users a 
-      LEFT OUTER JOIN staff b 
-        ON a.id = b.user_id AND a.usertype = 'Teacher'
-      LEFT OUTER JOIN students st 
-        ON a.id = st.user_id AND a.usertype = 'Student'
-      LEFT JOIN timetable t 
-        ON (b.id = t.staff_id AND a.usertype = 'Teacher')
-      LEFT JOIN subjects s 
-        ON t.subject_id = s.subject_id
-      LEFT JOIN classmaster cm 
-        ON (cm.id = b.class_id AND a.usertype = 'Teacher') 
-        OR (cm.id = st.class_id AND a.usertype = 'Student')
-      WHERE username = $1 OR email = $1 OR phone_number = $1
-      GROUP BY 
-        a.id, a.username, a.email, a.usertype, a.created_at, a.profile_img, a.password
-      ORDER BY a.id`,
-      [username]
-    );
-
-    const user = result.rows[0];
-
-    if (!user) {
-      return res.status(400).json({
-        success: false,
-        error: "Invalid credentials",
+        END
+    ) AS staff_id,
+    STRING_AGG(DISTINCT s.subject_name, ', ') AS subject,
+    ARRAY_AGG(DISTINCT cm.class || ' - ' || cm.section) AS classes,
+	a.profile_img,a.password
+FROM 
+    users a 
+LEFT OUTER JOIN 
+    staff b ON a.id = b.user_id AND a.usertype = 'Teacher'
+LEFT OUTER JOIN 
+    students st ON a.id = st.user_id AND a.usertype = 'Student'
+LEFT JOIN 
+    timetable t ON (b.id = t.staff_id AND a.usertype = 'Teacher') 
+LEFT JOIN 
+    subjects s ON t.subject_id = s.subject_id
+LEFT JOIN
+    classmaster cm ON (cm.id = b.class_id AND a.usertype = 'Teacher') or (cm.id = st.class_id AND a.usertype = 'Student')
+WHERE 
+    username = $1 or email =$1 or phone_number=$1
+GROUP BY 
+    a.id, a.username, a.email, a.usertype, a.created_at
+ORDER BY 
+    a.id`,
+        [username]
+      );
+  
+      const user = result.rows[0];
+      
+      if (!user) {
+        return res.status(400).json({ success: false,
+          error: "Invalid credentials" });
+      }
+  
+      const isPasswordCorrect = await bcrypt.compare(password, user.password);
+      
+      if (!isPasswordCorrect) {
+        return res.status(400).json({ success: false,
+          error: "Invalid credentials"  });
+      }
+  
+      const token = generateToken(user.id, res);
+      const academicYear = getAcademicYear();
+  
+      res.status(200).json({
+        success: true,
+        token: token, // or accessToken: token   
+        academicYear: academicYear,
+        user:{
+          id: user.id,
+          username: user.username,
+          fullname: user.fullname,
+          email: user.email,
+          usertype: user.usertype,
+          profileImg: user.profile_img,
+          staffid:user.staff_id
+        }
       });
+  
+    } catch (error) {
+      handleDBError(error, res);
     }
-
-    const isPasswordCorrect = await bcrypt.compare(password, user.password);
-
-    if (!isPasswordCorrect) {
-      return res.status(400).json({
-        success: false,
-        error: "Invalid credentials",
-      });
-    }
-
-    const token = generateToken(user.id, res);
-    const academicYear = getAcademicYear();
-
-    res.status(200).json({
-      success: true,
-      token,
-      academicYear,
-      user: {
-        id: user.id,
-        username: user.username,
-        fullname: user.fullname,
-        email: user.email,
-        usertype: user.usertype,
-        profileImg: user.profile_img,
-        staffid: user.staff_id,
-      },
-    });
-  } catch (error) {
-    console.error("Login error:", error);
-    handleDBError(error, res);
-  }
-};
+  };
 export const logout = async (req, res) => {
       try {
         // Get token from cookies
