@@ -65,6 +65,14 @@ export const staffUpdate = async (req, res) => {
   try {
     const { _staffid } = req.params;
     const updates = req.body;
+
+    if (Object.prototype.hasOwnProperty.call(updates, "user_id")) {
+      if (updates.user_id === "" || updates.user_id === "null" || updates.user_id === null) {
+        updates.user_id = null;
+      } else {
+        updates.user_id = Number(updates.user_id);
+      }
+    }
     
     if (req.file) {
       updates.profileImage = req.file.path;
@@ -888,5 +896,60 @@ export const getStaffTimetableById = async (req, res) => {
   } catch (error) {
     console.error(`Error in get Staff TimeTable Controller: ${error}`);
     res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
+export const saveOrUpdateStaffTimeTable = async (req, res) => {
+  try {
+    const {
+      timetable_id,
+      staff_id,
+      class_id,
+      subject_id,
+      monday,
+      tuesday,
+      wednesday,
+      thursday,
+      friday,
+      saturday,
+      academic_year,
+      isDelete
+    } = req.body;
+
+    // 🔴 DELETE
+    if (isDelete && timetable_id) {
+      const deleted = await staffModel.deleteStaffTimeTable(timetable_id);
+      return res.json({ message: "Deleted successfully", deleted });
+    }
+
+    const updates = {
+      class_id,
+      subject_id,
+      monday,
+      tuesday,
+      wednesday,
+      thursday,
+      friday,
+      saturday,
+      academic_year
+    };
+
+    // 🟢 INSERT (timetable_id === "temp")
+    if (!timetable_id || timetable_id === "temp") {
+      const created = await staffModel.addStaffTimeTable(staff_id, updates);
+      return res.status(201).json(created);
+    }
+
+    // 🔵 UPDATE
+    const updated = await staffModel.updateStaffTimeTable(
+      timetable_id,
+      updates
+    );
+
+    res.json(updated);
+
+  } catch (error) {
+    console.error("Timetable save error:", error);
+    res.status(500).json({ error: "Failed to process timetable" });
   }
 };

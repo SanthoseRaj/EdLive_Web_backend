@@ -4,7 +4,8 @@ import {
   sendParentCommunication,
   sendClassCommunication,
   getStudentCommunications,
-  getCommunicationsBySender
+  getCommunicationsBySender,
+  markCommunicationViewed
 } from "../controllers/messages.controller.js";
 
 const router = express.Router();
@@ -135,6 +136,7 @@ router.post('/class', protectRoute, sendClassCommunication);
  *         description: Internal server error
  */
 router.get('/sender', protectRoute, getCommunicationsBySender);
+router.patch('/:id/viewed', protectRoute, markCommunicationViewed);
 
 /**
  * @swagger

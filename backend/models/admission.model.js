@@ -23,10 +23,10 @@ const AdmissionModel = {
       data.gender,
       data.dob,
       data.classRequired,
-      data.syllabusPrimary,
+      data.syllabusPrimary || data.syllabus,
       data.father?.email || data.mother?.email, // Fallback for contact
       data.father?.phone || data.mother?.phone,
-      `${data.door || ''}, ${data.street || ''}`,
+      data.address || `${data.door || ''}, ${data.street || ''}`,
       data.city,
       data.nationality,
       data.religion,
@@ -59,9 +59,9 @@ const AdmissionModel = {
     if (statusFilter) {
       // Handle special case for 'Rejected' page which often includes 'Not joined'
       if (statusFilter === 'Rejected_Page') {
-        query += ` WHERE status IN ('Rejected', 'Not joined')`;
+        query += ` WHERE status IN ('Rejected', 'Not Joined')`;
       } else if (statusFilter === 'New_Page') {
-        query += ` WHERE status NOT IN ('Accepted', 'Rejected', 'Not joined')`;
+        query += ` WHERE status NOT IN ('Accepted', 'Rejected', 'Not Joined')`;
       } else {
         query += ` WHERE status = $1`;
         values.push(statusFilter);
@@ -97,7 +97,7 @@ const AdmissionModel = {
             academic_year as year,
             COUNT(*)::int as total,
             COUNT(CASE WHEN status = 'Accepted' THEN 1 END)::int as admitted,
-            COUNT(CASE WHEN status IN ('Rejected', 'Not joined') THEN 1 END)::int as rejected,
+            COUNT(CASE WHEN status IN ('Rejected', 'Not Joined') THEN 1 END)::int as rejected,
             -- Calculating hypothetical vacancy (Assuming capacity of 200 for example, or handled by frontend logic)
             GREATEST(200 - COUNT(CASE WHEN status = 'Accepted' THEN 1 END), 0)::int as vacancy
         FROM admissions 

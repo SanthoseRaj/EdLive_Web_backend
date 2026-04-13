@@ -66,6 +66,11 @@ const enrollStudent = async (studentId, activityId, classId, categoryId, remarks
     INSERT INTO student_activities 
     (student_id, activity_id, class_id, category_id, remarks, academic_year)
     VALUES ($1, $2, $3, $4, $5, $6)
+    ON CONFLICT (student_id, activity_id, academic_year)
+    DO UPDATE SET
+      class_id = EXCLUDED.class_id,
+      category_id = EXCLUDED.category_id,
+      remarks = EXCLUDED.remarks
     RETURNING *
   `;
   const values = [studentId, activityId, classId, categoryId, remarks,academicYear];
@@ -148,13 +153,22 @@ const getEnrollmentStats = async (classId = null, academicYear = null) => {
 };
 
 export const createEvent = async (data) => {
+  const eventName = data.event_name ?? data.eventName;
+  const startDate = data.start_date ?? data.startDate;
+  const endDate = data.end_date ?? data.endDate;
+  const categoryId = data.category_id ?? data.categoryId;
+  const activityId = data.activity_id ?? data.activityId;
+  const staffId = data.staff_id ?? data.staffId;
+  const classId = data.class_id ?? data.classId;
+  const remarks = data.remarks ?? null;
+
   const q = `
     INSERT INTO co_curricular_events
     (event_name, start_date, end_date, category_id, activity_id, staff_id, class_id, remarks)
     VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
     RETURNING *
   `;
-  const v = Object.values(data);
+  const v = [eventName, startDate, endDate, categoryId, activityId, staffId, classId, remarks];
   return (await pool.query(q, v)).rows[0];
 };
 
@@ -207,6 +221,91 @@ export const getAttendance = async (eventId) => {
   ).rows;
 };
 
+export const getEventParticipants = async (eventId) => {
+  return (
+    await pool.query(
+      `
+      SELECT s.id, s.full_name
+      FROM event_participants ep
+      JOIN students s ON s.id = ep.student_id
+      WHERE ep.event_id = $1
+      ORDER BY s.full_name
+      `,
+      [eventId]
+    )
+  ).rows;
+};
+
+const getEventParticipationStats = async ({
+  classId,
+  className,
+  startDate,
+  endDate,
+  academicYear
+}) => {
+
+  let query = `
+    SELECT 
+      COUNT(DISTINCT ep.student_id) AS participating_count,
+      COUNT(DISTINCT s.id) AS total_students
+    FROM students s
+    LEFT JOIN event_participants ep ON ep.student_id = s.id
+    LEFT JOIN co_curricular_events e ON e.id = ep.event_id
+    LEFT JOIN classmaster cm ON s.class_id = cm.id
+    WHERE 1=1
+  `;
+
+  const params = [];
+  let paramCount = 0;
+
+  // 🔹 Filter by classId (multiple allowed)
+  if (classId) {
+    query += ` AND s.class_id = ANY(string_to_array($${++paramCount}, ',')::int[])`;
+    params.push(classId.toString());
+  }
+
+  // 🔹 Filter by className
+  else if (className) {
+    query += ` AND cm.class = ANY(string_to_array($${++paramCount}, ',')::varchar[])`;
+    params.push(className.toString());
+  }
+
+  // 🔹 Filter by academic year
+  if (academicYear) {
+    query += ` AND e.academic_year = $${++paramCount}`;
+    params.push(academicYear);
+  }
+
+  // 🔹 Filter by date range
+  if (startDate) {
+    query += ` AND e.start_date >= $${++paramCount}`;
+    params.push(startDate);
+  }
+
+  if (endDate) {
+    query += ` AND e.start_date <= $${++paramCount}`;
+    params.push(endDate);
+  }
+
+  console.log("Event Stats Query:", query);
+  console.log("Params:", params);
+
+  const { rows } = await pool.query(query, params);
+
+  const participating = Number(rows[0]?.participating_count || 0);
+  const total = Number(rows[0]?.total_students || 0);
+
+  const percentage =
+    total > 0 ? ((participating / total) * 100).toFixed(2) : 0;
+
+  return {
+    participating_count: participating,
+    total_students: total,
+    participation_percentage: percentage
+  };
+};
+
+
 export {
   getCategories,
   getActivitiesByCategory,
@@ -215,5 +314,6 @@ export {
   enrollStudent,
   removeStudentActivity,
   updateStudentActivity,
-  getEnrollmentStats
+  getEnrollmentStats,
+  getEventParticipationStats
 };

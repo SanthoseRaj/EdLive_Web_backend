@@ -67,6 +67,11 @@ export const updateStudent = async (req, res) => {
     try {
         const {id} = req.params;
         const updates = req.body;
+        if (Object.prototype.hasOwnProperty.call(updates, "user_id")) {
+            if (updates.user_id === "" || updates.user_id === "null") {
+                updates.user_id = null;
+            }
+        }
         
         const updatedInfo = await student.updateStudent(id, updates);
         res.json(updatedInfo);

@@ -26,7 +26,9 @@ const storage = multer.diskStorage({
       uploadPath = `content/uploads/homework/`;
     }else if (file.fieldname === 'achievementFileUpload') {
       uploadPath = `content/uploads/achievement/`;
-    }      
+    }  else if (file.fieldname === 'file') {
+           uploadPath = `content/admissions/`;
+     }      
       else {
       uploadPath = `content/uploads/${id}/certificates/`;
     }
@@ -48,7 +50,7 @@ const fileFilter = (req, file, cb) => {
     } else {
       cb(new Error('Only image files (JPEG, PNG, GIF) are allowed for profile pictures!'), false);
     }
-  } else if (['certificate', 'pf_doc', 'exp_doc','others','todoFileUpload','achievementFileUpload','document_path'].includes(file.fieldname)) {
+  } else if (['certificate', 'pf_doc', 'exp_doc','others','todoFileUpload','achievementFileUpload','document_path','file'].includes(file.fieldname)) {
     const allowedTypes = [
       'application/pdf',
       'application/msword',

@@ -424,12 +424,26 @@ export const getMemberStatusById = async (req, res) => {
 export const deactivateMember = async (req, res) => {
   try {
     const { id } = req.params;
-    const { rows } = await LibraryMember.deActiveMember(id);
+    const rows = await LibraryMember.deActiveMember(id);
     
     if (rows.length === 0) {
       return res.status(404).json({ success: false, error: 'Member not found' });
     }
     
+    res.json({ success: true, data: rows[0] });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+export const activateMember = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const rows = await LibraryMember.activateMember(id);
+
+    if (rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Member not found' });
+    }
+
     res.json({ success: true, data: rows[0] });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });

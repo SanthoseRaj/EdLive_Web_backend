@@ -93,10 +93,15 @@ const getCommunicationsBySender = async (sender_id) => {
     SELECT 
       pc.*,
       u.fullname as sender_name,
-      s.full_name as student_name
+      s.full_name as student_name,
+      CASE WHEN udv.id IS NULL THEN FALSE ELSE TRUE END as is_read
     FROM parent_communications pc
     JOIN users u ON pc.sender_id = u.id
     JOIN students s ON pc.student_id = s.id
+    LEFT JOIN user_dashboard_views udv
+      ON udv.user_id = $1
+      AND udv.item_type = 'messages'
+      AND udv.item_id = pc.id
     WHERE pc.sender_id = $1
     ORDER BY pc.created_at DESC;
   `;
@@ -104,9 +109,22 @@ const getCommunicationsBySender = async (sender_id) => {
   return rows;
 };
 
+const markCommunicationAsViewed = async (userId, userType, communicationId) => {
+  const query = `
+    INSERT INTO user_dashboard_views (user_id, user_type, item_type, item_id, last_viewed)
+    VALUES ($1, $2, 'messages', $3, CURRENT_TIMESTAMP)
+    ON CONFLICT (user_id, item_type, item_id)
+    DO UPDATE SET last_viewed = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+    RETURNING *;
+  `;
+  const { rows } = await pool.query(query, [userId, userType, communicationId]);
+  return rows[0];
+};
+
 export {
   createParentCommunication,
   updateCommunicationStatus,
   getCommunicationsByStudent,
-  getCommunicationsBySender
+  getCommunicationsBySender,
+  markCommunicationAsViewed
 };

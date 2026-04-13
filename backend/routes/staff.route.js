@@ -39,7 +39,8 @@ import {
   getstudents,
   getClassAssigned,
   batchUpdateStaff,
-  getStaffTimetableById
+  getStaffTimetableById,
+  saveOrUpdateStaffTimeTable
    
 } from '../controllers/staff.controllers.js';
 
@@ -1766,5 +1767,90 @@ router.get('/teachers/available', protectRoute, getAvailableTeachers);
  *         description: Server error
  */
 router.get("/StaffTimeTable/:_staffid?", protectRoute, getStaffTimetableById);
+
+/**
+ * @swagger
+ * /api/staff/SaveStaffTimeTable:
+ *   post:
+ *     tags: [Timetable]
+ *     summary: Add, Update or Delete staff timetable
+ *     description: |
+ *       This API performs timetable operations based on `timetable_id`.
+ *       
+ *       • If `timetable_id` = "temp" OR not provided → Creates new timetable  
+ *       • If `timetable_id` is a number → Updates existing timetable  
+ *       • If `isDelete` = true → Deletes timetable by `timetable_id`
+ *
+ *     security:
+ *       - BearerAuth: []
+ *
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               timetable_id:
+ *                 type: string
+ *                 example: "temp"
+ *                 description: |
+ *                   Use "temp" for creating new timetable.
+ *                   Use existing timetable_id for update/delete.
+ *
+ *               staff_id:
+ *                 type: integer
+ *                 example: 5
+ *
+ *               class_id:
+ *                 type: integer
+ *                 example: 2
+ *
+ *               subject_id:
+ *                 type: integer
+ *                 example: 3
+ *
+ *               monday:
+ *                 type: string
+ *                 example: "09:00 AM - 10:00 AM"
+ *
+ *               tuesday:
+ *                 type: string
+ *                 example: "10:00 AM - 11:00 AM"
+ *
+ *               wednesday:
+ *                 type: string
+ *                 example: "11:00 AM - 12:00 PM"
+ *
+ *               thursday:
+ *                 type: string
+ *                 example: "12:00 PM - 01:00 PM"
+ *
+ *               friday:
+ *                 type: string
+ *                 example: "02:00 PM - 03:00 PM"
+ *
+ *               saturday:
+ *                 type: string
+ *                 example: "09:00 AM - 10:00 AM"
+ *
+ *               isDelete:
+ *                 type: boolean
+ *                 example: false
+ *                 description: Set true to delete timetable
+ *
+ *     responses:
+ *       201:
+ *         description: Timetable created successfully
+ *       200:
+ *         description: Timetable updated or deleted successfully
+ *       400:
+ *         description: Invalid input data
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Internal server error
+ */
+router.post('/SaveStaffTimeTable', protectRoute, saveOrUpdateStaffTimeTable);
 
 export default router;

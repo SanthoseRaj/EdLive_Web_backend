@@ -23,6 +23,7 @@ import {
   getAdminDashboardStats,
   getMemberStatusById,
   deactivateMember,
+  activateMember,
   getActiveCheckouts,
   getAvailableBookCopies
 } from "../controllers/library.controller.js";
@@ -752,6 +753,7 @@ router.get('/members/statusbyid', protectRoute, getMemberStatusById);
  *                   $ref: '#/components/schemas/LibraryMember'
  */
 router.put('/members/:id/deactivate', protectRoute, deactivateMember);
+router.put('/members/:id/activate', protectRoute, activateMember);
 // #region CreateMember
 /**
  * @swagger

@@ -35,15 +35,54 @@ const getAllTodosByUser = async (userId, userType) => {
     return rows[0];
   };
   
-  const updateTodo = async (id, userId, { date, title, description, completed,classid=null,subjectid=null,todofileupload=null }) => {
-    const { rows } = await pool.query(
-      `UPDATE todos 
-       SET date = $1, title = $2, description = $3, completed = $4,class_id=$7,subject_id=$8,todo_file=$9, updated_at = CURRENT_TIMESTAMP 
-       WHERE id = $5 AND user_id = $6 RETURNING *`,
-      [date, title, description, completed, id, userId,classid,subjectid,todofileupload]
-    );
-    return rows[0];
-  };
+  const updateTodo = async (
+  id,
+  userId,
+  userType,
+  { date, title, description, completed = null, classid = null, subjectid = null, todofileupload = null }
+) => {
+
+  let query;
+  let values;
+
+  if (userType === "Staff Admin") {
+    // 🔥 Admin can update any todo
+    query = `
+      UPDATE todos 
+      SET date = $1,
+          title = $2,
+          description = $3,
+          completed = $4,
+          class_id = $6,
+          subject_id = $7,
+          todo_file = $8,
+          updated_at = CURRENT_TIMESTAMP
+      WHERE id = $5
+      RETURNING *`;
+    
+    values = [date, title, description, completed, id, classid, subjectid, todofileupload];
+
+  } else {
+    // Normal users → must match user_id
+    query = `
+      UPDATE todos 
+      SET date = $1,
+          title = $2,
+          description = $3,
+          completed = $4,
+          class_id = $7,
+          subject_id = $8,
+          todo_file = $9,
+          updated_at = CURRENT_TIMESTAMP
+      WHERE id = $5 AND user_id = $6
+      RETURNING *`;
+
+    values = [date, title, description, completed, id, userId, classid, subjectid, todofileupload];
+  }
+
+  const { rows } = await pool.query(query, values);
+  return rows[0];
+};
   
   const deleteTodo = async (id, userId) => {
     await pool.query('DELETE FROM todos WHERE id = $1 AND user_id = $2', [id, userId]);

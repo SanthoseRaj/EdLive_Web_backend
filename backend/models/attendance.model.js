@@ -176,7 +176,7 @@ const getAdminAttendanceStats = async ({ classId, className, startDate, endDate 
     query += ` AND a.class_id = ANY(string_to_array($${++paramCount}, ',')::int[])`;
     params.push(classId.toString()); // Ensure it's a string
   } else if (className) {
-    query += ` AND cm.class = $${++paramCount}`;
+    query += ` AND cm.class = ANY(string_to_array($${++paramCount},',')::varchar[])`;
     params.push(className);
   }
 

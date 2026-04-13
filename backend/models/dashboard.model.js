@@ -235,6 +235,122 @@ const getTotalNotificationCount = async (userId, userType) => {
   }
 };
 
+const getLatestMessagesByCategory = async (userId, userType) => {
+  try {
+    const query = `
+      WITH items AS (
+        SELECT
+          'todo'::text AS module_type,
+          t.title::text AS title,
+          t.description::text AS content,
+          t.date AS timestamp
+        FROM todos t
+        WHERE (
+          ${userType === 'Student' ? 't.class_id IN (SELECT class_id FROM students WHERE id = $1)' :
+            userType === 'Teacher' ? 't.user_id = $1' :
+            '$1 = $1'}
+        ) AND t.completed = false
+
+        UNION ALL
+
+        SELECT
+          'payments'::text AS module_type,
+          ft.name::text AS title,
+          CONCAT(ft.description, ' : ', ft.amount)::text AS content,
+          COALESCE(fa.created_at, fa.due_date) AS timestamp
+        FROM fee_assignments fa
+        JOIN fee_types ft ON fa.fee_type_id = ft.id
+        WHERE (
+          ${userType === 'Student' ? 'fa.class_id IN (SELECT class_id FROM students WHERE id = $1)' :
+            userType === 'Teacher' ? 'fa.class_id IN (SELECT class_id FROM staff WHERE user_id = $1)' :
+            '$1 = $1'}
+        )
+
+        UNION ALL
+
+        SELECT
+          'messages'::text AS module_type,
+          pc.Message_type::text AS title,
+          pc.message_text::text AS content,
+          pc.meeting_date AS timestamp
+        FROM parent_communications pc
+        WHERE (
+          ${userType === 'Student' ? 'pc.student_id = $1' :
+            userType === 'Teacher' ? 'pc.sender_id = $1' :
+            '$1 = $1'}
+        )
+
+        UNION ALL
+
+        SELECT
+          'library'::text AS module_type,
+          'Overdue'::text AS title,
+          CONCAT('Book "', b.title, '" is overdue')::text AS content,
+          c.created_at AS timestamp
+        FROM checkouts c
+        JOIN library_members lm ON c.member_id = lm.id
+        JOIN book_copies bc ON c.book_copy_id = bc.id
+        JOIN books b ON b.id = bc.book_id
+        WHERE (
+          ${userType === 'Student' ? 'lm.user_id = $1 AND lm.user_type = \'student\'' :
+            userType === 'Teacher' ? 'lm.user_id IN (SELECT id FROM students WHERE class_id IN (SELECT class_id FROM staff WHERE user_id = $1))' :
+            '$1 = $1'}
+        )
+        AND c.return_date IS NULL
+        AND c.due_date < CURRENT_DATE
+
+        UNION ALL
+
+        SELECT
+          'achievements'::text AS module_type,
+          a.title::text AS title,
+          a.description::text AS content,
+          COALESCE(a.created_at, a.achievement_date) AS timestamp
+        FROM achievements a
+        WHERE (
+          ${userType === 'Student'
+            ? '(a.visibility = \'private\' AND a.student_id = $1) OR (a.visibility = \'class\' AND a.class_id IN (SELECT class_id FROM students WHERE id = $1)) OR (a.visibility IN (\'school\', \'public\'))'
+            : userType === 'Teacher'
+              ? 'a.student_id IN (SELECT id FROM students WHERE class_id IN (SELECT class_id FROM staff WHERE user_id = $1))'
+              : '$1 = $1'}
+        )
+        AND a.approved = false
+      ),
+      ranked AS (
+        SELECT
+          module_type,
+          title,
+          content,
+          timestamp,
+          ROW_NUMBER() OVER (PARTITION BY module_type ORDER BY timestamp DESC NULLS LAST) AS rn
+        FROM items
+      )
+      SELECT module_type, title, content, timestamp
+      FROM ranked
+      WHERE rn = 1
+    `;
+
+    const { rows } = await pool.query(query, [userId]);
+    const latestByCategory = {};
+
+    rows.forEach((row) => {
+      latestByCategory[row.module_type] = row.title || row.content || "";
+    });
+
+    const overallLatest = rows
+      .slice()
+      .sort((a, b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0))[0];
+
+    latestByCategory.notifications =
+      overallLatest?.title || overallLatest?.content || "";
+
+    return latestByCategory;
+  } catch (error) {
+    console.error('Error in getLatestMessagesByCategory:', error);
+    return {};
+  }
+};
+
 // Get dashboard counts
 const getDashboardCounts = async (userId, userType) => {
   try {
@@ -265,6 +381,7 @@ const getDashboardCounts = async (userId, userType) => {
     
     const achievementsResult = await getAchievementsCount(userId, userType);
     counts.achievements = parseInt(achievementsResult.rows[0].count);
+    counts.latest_messages = await getLatestMessagesByCategory(userId, userType);
     
     return counts;
   } catch (error) {
@@ -359,6 +476,10 @@ const getDailyNotifications = async (userId, userType, targetDate = null) => {
           SELECT 1 FROM communication_replies cr 
           WHERE cr.item_id = t.id AND cr.item_type = 'todo'
         ) as has_replies,
+        (
+          SELECT COUNT(*) FROM communication_replies cr
+          WHERE cr.item_id = t.id AND cr.item_type = 'todo'
+        ) as reply_count,
         DATE(t.date) as notification_date
       FROM todos t
       WHERE 
@@ -384,6 +505,10 @@ const getDailyNotifications = async (userId, userType, targetDate = null) => {
           SELECT 1 FROM communication_replies cr 
           WHERE cr.item_id = fa.id AND cr.item_type = 'payments'
         ) as has_replies,
+        (
+          SELECT COUNT(*) FROM communication_replies cr
+          WHERE cr.item_id = fa.id AND cr.item_type = 'payments'
+        ) as reply_count,
         DATE(fa.created_at) as notification_date
       FROM fee_assignments fa,fee_types ft where fa.fee_type_id=ft.id
       and
@@ -408,6 +533,10 @@ const getDailyNotifications = async (userId, userType, targetDate = null) => {
           SELECT 1 FROM communication_replies cr 
           WHERE cr.item_id = pc.id AND cr.item_type = 'messages'
         ) as has_replies,
+        (
+          SELECT COUNT(*) FROM communication_replies cr
+          WHERE cr.item_id = pc.id AND cr.item_type = 'messages'
+        ) as reply_count,
         DATE(pc.meeting_date) as notification_date
       FROM parent_communications pc
       WHERE 
@@ -432,6 +561,10 @@ const getDailyNotifications = async (userId, userType, targetDate = null) => {
           SELECT 1 FROM communication_replies cr 
           WHERE cr.item_id = c.id AND cr.item_type = 'library'
         ) as has_replies,
+        (
+          SELECT COUNT(*) FROM communication_replies cr
+          WHERE cr.item_id = c.id AND cr.item_type = 'library'
+        ) as reply_count,
         DATE(c.created_at) as notification_date
       FROM checkouts c
       JOIN library_members lm ON c.member_id = lm.id
@@ -461,6 +594,10 @@ const getDailyNotifications = async (userId, userType, targetDate = null) => {
           SELECT 1 FROM communication_replies cr 
           WHERE cr.item_id = a.id AND cr.item_type = 'achievements'
         ) as has_replies,
+        (
+          SELECT COUNT(*) FROM communication_replies cr
+          WHERE cr.item_id = a.id AND cr.item_type = 'achievements'
+        ) as reply_count,
         DATE(a.created_at) as notification_date
       FROM achievements a
       WHERE 
@@ -594,11 +731,15 @@ const getMessageReplies = async (itemId, itemType, userId, userType) => {
           cr.message_text,
           cr.parent_id,
           cr.created_at,
-          u.fullname as sender_name,
+          CASE
+            WHEN cr.sender_type = 'Student' THEN s.full_name
+            ELSE u.fullname
+          END as sender_name,
           1 as depth,
           ARRAY[cr.id] as path
         FROM communication_replies cr
         LEFT JOIN users u ON cr.sender_id = u.id
+        LEFT JOIN students s ON cr.sender_id = s.id
         WHERE cr.item_id = $1 AND cr.item_type = $2 AND (cr.parent_id IS NULL or cr.parent_id=0)
         
         UNION ALL
@@ -612,11 +753,15 @@ const getMessageReplies = async (itemId, itemType, userId, userType) => {
           cr.message_text,
           cr.parent_id,
           cr.created_at,
-          u.fullname as sender_name,
+          CASE
+            WHEN cr.sender_type = 'Student' THEN s.full_name
+            ELSE u.fullname
+          END as sender_name,
           rt.depth + 1 as depth,
           rt.path || cr.id as path
         FROM communication_replies cr
         LEFT JOIN users u ON cr.sender_id = u.id
+        LEFT JOIN students s ON cr.sender_id = s.id
         INNER JOIN reply_tree rt ON cr.parent_id = rt.id
         WHERE cr.item_id = $1 AND cr.item_type = $2
       )
@@ -752,13 +897,15 @@ const addMessageReply = async (itemId, itemType, userId, userType, messageText, 
     
     // Get sender info for response
     const senderResult = await pool.query(
-      `SELECT fullname first_name,fullname last_name FROM users WHERE id = $1`,
+      userType === 'Student'
+        ? `SELECT full_name AS sender_name FROM students WHERE id = $1`
+        : `SELECT fullname AS sender_name FROM users WHERE id = $1`,
       [userId]
     );
     
     const reply = replyResult.rows[0];
     if (senderResult.rows.length > 0) {
-      reply.sender_name = `${senderResult.rows[0].first_name} ${senderResult.rows[0].last_name}`;
+      reply.sender_name = senderResult.rows[0].sender_name;
     }
     reply.replies = []; // Empty array for hierarchical structure
     

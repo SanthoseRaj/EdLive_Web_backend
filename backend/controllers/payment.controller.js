@@ -1,4 +1,5 @@
 import { FeeType, FeeAssignment, Payment,ClassTeacher } from '../models/payment.model.js';
+import crypto from "crypto";
 
 // #region Fee Types
 export const getFeeTypes = async (req, res) => {
@@ -92,7 +93,193 @@ export const createPayment = async (req, res) => {
     res.status(500).json({ success: false, error: error.message });
   }
 };
+
+export const updateFeeType = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, description, amount } = req.body;
+
+    const updated = await FeeType.update(id, { name, description, amount });
+    if (!updated) {
+      return res.status(404).json({ success: false, error: "Fee type not found" });
+    }
+
+    res.json({ success: true, data: updated });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+export const deleteFeeType = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const deleted = await FeeType.softDelete(id);
+
+    if (!deleted) {
+      return res.status(404).json({ success: false, error: "Fee type not found" });
+    }
+
+    res.json({ success: true, message: "Fee type deleted successfully" });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+export const updateFeeAssignment = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { fee_type_id, due_date, academic_year } = req.body;
+
+    const updated = await FeeAssignment.update(id, {
+      fee_type_id,
+      due_date,
+      academic_year,
+    });
+
+    if (!updated) {
+      return res
+        .status(404)
+        .json({ success: false, error: "Fee assignment not found" });
+    }
+
+    res.json({ success: true, data: updated });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+export const deleteFeeAssignment = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const deleted = await FeeAssignment.delete(id);
+
+    if (!deleted) {
+      return res
+        .status(404)
+        .json({ success: false, error: "Fee assignment not found" });
+    }
+
+    res.json({ success: true, message: "Fee assignment deleted successfully" });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
 // #endregion
+
+export const verifyRazorpayPayment = async (req, res) => {
+  try {
+    const {
+      razorpay_payment_id,
+      razorpay_order_id,
+      razorpay_signature,
+      fee_id,
+      fee_assignment_id,
+      student_id,
+      record_payment,
+    } = req.body;
+
+    if (!razorpay_payment_id) {
+      return res.status(400).json({ success: false, error: "razorpay_payment_id is required" });
+    }
+
+    const razorpayKeyId = process.env.RAZORPAY_KEY_ID || process.env.REACT_APP_RAZORPAY_KEY_ID;
+    const razorpayKeySecret = process.env.RAZORPAY_KEY_SECRET;
+    if (!razorpayKeyId || !razorpayKeySecret) {
+      return res.status(500).json({
+        success: false,
+        error: "Razorpay credentials are not configured on backend",
+      });
+    }
+
+    let signatureVerified = false;
+    if (razorpay_order_id && razorpay_signature) {
+      const expected = crypto
+        .createHmac("sha256", razorpayKeySecret)
+        .update(`${razorpay_order_id}|${razorpay_payment_id}`)
+        .digest("hex");
+      signatureVerified = expected === razorpay_signature;
+      if (!signatureVerified) {
+        return res.status(400).json({ success: false, error: "Invalid Razorpay signature" });
+      }
+    }
+
+    const razorpayRes = await fetch(
+      `https://api.razorpay.com/v1/payments/${razorpay_payment_id}`,
+      {
+        method: "GET",
+        headers: {
+          Authorization: `Basic ${Buffer.from(`${razorpayKeyId}:${razorpayKeySecret}`).toString("base64")}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    if (!razorpayRes.ok) {
+      const errText = await razorpayRes.text();
+      return res.status(400).json({
+        success: false,
+        error: "Unable to verify payment with Razorpay",
+        details: errText,
+      });
+    }
+
+    const razorpayPayment = await razorpayRes.json();
+    const validStatuses = new Set(["captured", "authorized"]);
+    if (!validStatuses.has(razorpayPayment.status)) {
+      return res.status(400).json({
+        success: false,
+        error: `Payment status is ${razorpayPayment.status}, not successful`,
+      });
+    }
+
+    const assignmentId = Number(fee_assignment_id || fee_id);
+    if (assignmentId) {
+      const feeAssignment = await FeeAssignment.findById(assignmentId);
+      if (!feeAssignment) {
+        return res.status(404).json({ success: false, error: "Fee assignment not found" });
+      }
+
+      const expectedAmountPaise = Number(feeAssignment.base_amount) * 100;
+      if (Number(razorpayPayment.amount) !== expectedAmountPaise) {
+        return res.status(400).json({
+          success: false,
+          error: "Payment amount mismatch",
+        });
+      }
+    }
+
+    let paymentRecord = null;
+    if (record_payment === true && assignmentId && student_id) {
+      paymentRecord = await Payment.create({
+        student_id: Number(student_id),
+        fee_assignment_id: assignmentId,
+        amount: Number(razorpayPayment.amount) / 100,
+        payment_date: new Date(),
+        transaction_reference: razorpay_payment_id,
+        payment_method: "Razorpay",
+        status: "Completed",
+        created_by: req.user.id,
+      });
+    }
+
+    return res.json({
+      success: true,
+      message: "Razorpay payment verified successfully",
+      data: {
+        signatureVerified,
+        razorpay_payment_id,
+        razorpay_order_id: razorpay_order_id || razorpayPayment.order_id || null,
+        payment_status: razorpayPayment.status,
+        amount: Number(razorpayPayment.amount) / 100,
+        currency: razorpayPayment.currency,
+        paymentRecord,
+      },
+    });
+  } catch (error) {
+    console.error("Razorpay verify error:", error);
+    return res.status(500).json({ success: false, error: error.message });
+  }
+};
 
 // #region Admin Reports
 export const getClassPaymentReport = async (req, res) => {

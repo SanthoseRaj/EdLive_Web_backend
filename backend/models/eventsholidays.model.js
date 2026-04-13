@@ -11,6 +11,28 @@ const createEventHoliday = async ({
   recurrence_pattern,
   created_by
 }) => {
+  const normalizedEndDate = end_date || start_date;
+
+  const duplicateCheckQuery = `
+  SELECT id
+  FROM events_holidays
+  WHERE daterange(
+          LEAST(start_date, end_date),
+          GREATEST(start_date, end_date),
+          '[]'
+        )
+    && daterange(
+          LEAST($1::date, $2::date),
+          GREATEST($1::date, $2::date),
+          '[]'
+        )
+  LIMIT 1;
+`;
+  const duplicateCheck = await pool.query(duplicateCheckQuery, [start_date, normalizedEndDate]);
+  if (duplicateCheck.rows.length > 0) {
+    throw new Error("Selected date already has an event/holiday");
+  }
+
   const query = `
     INSERT INTO events_holidays 
     (title, description, start_date, end_date, is_holiday, holiday_type,
@@ -22,7 +44,7 @@ const createEventHoliday = async ({
     title,
     description,
     start_date,
-    end_date || start_date, // Use start_date as end_date if not provided
+    normalizedEndDate,
       is_holiday,
     holiday_type,
     is_recurring,

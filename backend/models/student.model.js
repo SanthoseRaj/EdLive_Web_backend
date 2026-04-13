@@ -184,8 +184,54 @@ const getStudentTimeTable = async (userId, academicYear)=>{
 }
 const getChildList = async (userId)=>{
     const result = await pool.query(
-      `SELECT st.*,cm.class ||' - '|| cm.section classname FROM students st left outer join classmaster cm on st.class_id=cm.id where user_id=$1`,
-      [ userId]
+      `
+        SELECT *
+        FROM (
+          SELECT
+            s.id,
+            s.user_id,
+            'Student' AS user_type,
+            s.student_id AS code,
+            s.admission_no,
+            s.full_name,
+            s.profile_img AS profile_img,
+            s.class_id,
+            s.created_at,
+            s.updated_at,
+            CASE
+              WHEN cm.id IS NULL THEN NULL
+              WHEN cm.section IS NULL OR cm.section = '' THEN cm.class
+              ELSE cm.class || ' - ' || cm.section
+            END AS classname
+          FROM students s
+          LEFT JOIN classmaster cm ON s.class_id = cm.id
+          WHERE s.user_id = $1
+
+          UNION ALL
+
+          SELECT
+            sf.id,
+            sf.user_id,
+            'Teacher' AS user_type,
+            sf.staff_id AS code,
+            sf.staff_id AS admission_no,
+            sf.full_name,
+            sf.profile_image profile_img,
+            sf.class_id,
+            sf.created_at,
+            NULL AS updated_at,
+            CASE
+              WHEN cm.id IS NULL THEN NULL
+              WHEN cm.section IS NULL OR cm.section = '' THEN cm.class
+              ELSE cm.class || ' - ' || cm.section
+            END AS classname
+          FROM staff sf
+          LEFT JOIN classmaster cm ON sf.class_id = cm.id
+          WHERE sf.user_id = $1
+        ) people
+        ORDER BY people.full_name ASC
+      `,
+      [userId]
     );
     return result.rows;
 }

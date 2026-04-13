@@ -1,6 +1,12 @@
 import AdmissionModel from "../models/admission.model.js";
 
 // Mappers to convert DB snake_case to Frontend camelCase
+
+const normalizeStatus = (status) => {
+  if (!status) return "New";
+  return String(status).toLowerCase() === "not joined" ? "Not Joined" : status;
+};
+
 const mapToFrontend = (row) => {
   if (!row) return null;
   return {
@@ -13,9 +19,11 @@ const mapToFrontend = (row) => {
     gender: row.gender,
     dob: row.dob, // Format might need adjustment depending on frontend requirement
     classRequired: row.class_required,
+    classLevel: row.class_required,
     syllabus: row.syllabus,
     appliedOn: row.applied_date,
-    status: row.status,
+    applied: row.applied_date,
+    status: normalizeStatus(row.status),
     // Flatten JSONB fields back for the form
     ...row.family_info, // spreads father, mother, guardian
     siblingName: row.family_info?.sibling?.name,
@@ -27,6 +35,7 @@ const mapToFrontend = (row) => {
     docs: row.documents,
     // Basic fields
     email: row.email,
+    phone: row.phone_number,
     address: row.address,
     city: row.city,
     nationality: row.nationality,

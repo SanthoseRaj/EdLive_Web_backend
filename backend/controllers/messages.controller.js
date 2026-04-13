@@ -272,3 +272,20 @@ export const getCommunicationsBySender = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+
+export const markCommunicationViewed = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+    const userType = req.user.usertype || "Teacher";
+
+    if (!id) {
+      return res.status(400).json({ error: "Communication ID is required" });
+    }
+
+    await parentCommunications.markCommunicationAsViewed(userId, userType, id);
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};

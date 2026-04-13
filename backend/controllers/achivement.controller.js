@@ -81,7 +81,8 @@ export const achievementApprove = async (req, res) => {
         const approved_by = req.user.id; // Assuming authenticated user ID
 
         // Check if user has admin privileges
-        if (req.user.usertype !== 'admin') {
+        const allowedApprovers = ['admin', 'Staff Admin', 'Class Admin'];
+        if (!allowedApprovers.includes(req.user.usertype)) {
             return res.status(403).json({ error: "Only admins can approve achievements" });
         }
 

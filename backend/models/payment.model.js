@@ -23,6 +23,34 @@ class FeeType {
     const { rows } = await pool.query(query, [name, description, amount]);
     return rows[0];
   }
+
+  static async update(id, { name, description, amount }) {
+    const query = `
+      UPDATE fee_types
+      SET
+        name = $1,
+        description = $2,
+        amount = $3,
+        updated_at = NOW()
+      WHERE id = $4
+      RETURNING *;
+    `;
+    const { rows } = await pool.query(query, [name, description, amount, id]);
+    return rows[0];
+  }
+
+  static async softDelete(id) {
+    const query = `
+      UPDATE fee_types
+      SET
+        is_active = FALSE,
+        updated_at = NOW()
+      WHERE id = $1
+      RETURNING id;
+    `;
+    const { rows } = await pool.query(query, [id]);
+    return rows[0];
+  }
 }
 
 class FeeAssignment {
@@ -106,6 +134,32 @@ class FeeAssignment {
     const { rows } = await pool.query(query, [fee_type_id, class_id, academic_year, due_date]);
     return rows[0];
   }
+
+  static async update(id, { fee_type_id, due_date, academic_year }) {
+    const query = `
+      UPDATE fee_assignments
+      SET
+        fee_type_id = $1,
+        due_date = $2,
+        academic_year = $3,
+        updated_at = NOW()
+      WHERE id = $4
+      RETURNING *;
+    `;
+    const { rows } = await pool.query(query, [fee_type_id, due_date, academic_year, id]);
+    return rows[0];
+  }
+
+  static async delete(id) {
+    const query = `
+      DELETE FROM fee_assignments
+      WHERE id = $1
+      RETURNING id;
+    `;
+    const { rows } = await pool.query(query, [id]);
+    return rows[0];
+  }
+
   static async findById(id) {
     const query = `SELECT fa.*, ft.name as fee_name, ft.amount as base_amount
     FROM fee_assignments fa

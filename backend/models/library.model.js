@@ -238,7 +238,7 @@ class LibraryMember {
     const { rows } = await pool.query(query, [memberId]);
     return parseInt(rows[0].count);
   }
-   static async findAll() {
+  static async findAll() {
     const query = `
       SELECT 
 	    lm.*,
@@ -254,8 +254,7 @@ class LibraryMember {
 	        ELSE u.id = lm.user_id 
 	    END
 	LEFT JOIN students s ON lm.user_id = s.id AND lm.user_type = 'student'
-	WHERE lm.is_active = TRUE
-	ORDER BY lm.created_at DESC;
+	ORDER BY lm.is_active DESC, lm.created_at DESC;
     `;
     const { rows } = await pool.query(query);
     return rows;
@@ -283,6 +282,11 @@ class LibraryMember {
   }
   static async deActiveMember(id) {
      const query = 'UPDATE library_members SET is_active = FALSE, updated_at = CURRENT_TIMESTAMP WHERE id = $1 RETURNING *';
+    const { rows } = await pool.query(query, [id]);
+    return rows;
+  }
+  static async activateMember(id) {
+    const query = 'UPDATE library_members SET is_active = TRUE, updated_at = CURRENT_TIMESTAMP WHERE id = $1 RETURNING *';
     const { rows } = await pool.query(query, [id]);
     return rows;
   }

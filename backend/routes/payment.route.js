@@ -3,11 +3,16 @@ import protectRoute from "../middleware/protectRoute.js";
 import {
   getFeeTypes,
   createFeeType,
+  updateFeeType,
+  deleteFeeType,
   getClassFeeAssignments,
   createFeeAssignment,
+  updateFeeAssignment,
+  deleteFeeAssignment,
   getStudentPayments,
   getStudentDuePayments,
   createPayment,
+  verifyRazorpayPayment,
   getClassPaymentReport,
   getUPIConfig,
   generateUPIIntent,
@@ -77,6 +82,8 @@ router.get('/fee-types', protectRoute, getFeeTypes);
  *                   $ref: '#/components/schemas/FeeType'
  */
 router.post('/fee-types', protectRoute, createFeeType);
+router.put('/fee-types/:id', protectRoute, updateFeeType);
+router.delete('/fee-types/:id', protectRoute, deleteFeeType);
 // #endregion
 
 // #region Fee Assignments
@@ -145,6 +152,8 @@ router.get('/assignments', protectRoute, getClassFeeAssignments);
  *                   $ref: '#/components/schemas/FeeAssignment'
  */
 router.post('/assignments', protectRoute, createFeeAssignment);
+router.put('/assignments/:id', protectRoute, updateFeeAssignment);
+router.delete('/assignments/:id', protectRoute, deleteFeeAssignment);
 // #endregion
 
 // #region Student Payments
@@ -233,6 +242,7 @@ router.get('/student/due', protectRoute, getStudentDuePayments);
  *                   $ref: '#/components/schemas/Payment'
  */
 router.post('/', protectRoute, createPayment);
+router.post('/verify', protectRoute, verifyRazorpayPayment);
 // #endregion
 
 // #region Admin Reports

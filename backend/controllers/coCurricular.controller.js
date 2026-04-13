@@ -176,3 +176,42 @@ export const saveAttendance = async (req, res) => {
 export const getAttendance = async (req, res) => {
   res.json(await coCurricularModel.getAttendance(req.params.eventId));
 };
+
+export const getEventParticipants = async (req, res) => {
+  try {
+    const data = await coCurricularModel.getEventParticipants(req.params.eventId);
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+export const getEventPerformanceStats = async (req, res) => {
+  try {
+    if (req.user.usertype === 'student') {
+      return res.status(403).json({ error: 'Not authorized' });
+    }
+
+    const { classId, className, startDate, endDate, academicYear } = req.query;
+
+    if (!classId || !startDate || !endDate) {
+      return res.status(400).json({
+        error: "Missing required parameters"
+      });
+    }
+
+    const stats = await coCurricularModel.getEventParticipationStats({
+       classId,
+  className,
+  startDate,
+  endDate,
+  academicYear
+    });
+
+    res.json(stats);
+
+  } catch (error) {
+    console.error("Event performance error:", error);
+    res.status(500).json({ error: error.message });
+  }
+};

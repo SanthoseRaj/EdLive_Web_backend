@@ -12,7 +12,9 @@ import {
   getEvents,
   addParticipants,
   saveAttendance,
-  getAttendance
+  getAttendance,
+  getEventParticipants,
+  getEventPerformanceStats
 } from "../controllers/coCurricular.controller.js";
 
 const router = express.Router();
@@ -439,5 +441,43 @@ router.post("/events/:eventId/attendance", protectRoute, saveAttendance);
  *         description: Unauthorized
  */
 router.get("/events/:eventId/attendance", protectRoute, getAttendance);
+
+
+router.get("/events/:eventId/participants", protectRoute, getEventParticipants);
+
+/**
+ * @swagger
+ * /api/co-curricular/events/performance:
+ *   get:
+ *     summary: Get event participation performance stats
+ *     tags: [CoCurricular]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: classId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *       - in: query
+ *         name: startDate
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: endDate
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: academicYear
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Event participation stats
+ */
+router.get('/events/performance', protectRoute, getEventPerformanceStats);
+
 
 export default router;

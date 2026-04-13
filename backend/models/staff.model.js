@@ -696,6 +696,75 @@ const getStaffTimetableById = async (staffId) => {
     saturday: row.saturday
   }));
 };
+const getTimeTableByKeys = async (staffId, classId, subjectId) => {
+  const { rows } = await pool.query(
+    `SELECT * FROM timetable
+     WHERE staff_id = $1
+       AND class_id = $2
+       AND subject_id = $3`,
+    [staffId, classId, subjectId]
+  );
+  return rows[0];
+};
+
+const updateStaffTimeTable = async (timetableId, updates) => {
+  const setClause = Object.keys(updates)
+    .map((key, index) => `${key} = $${index + 1}`)
+    .join(', ');
+
+  const query = {
+    text: `
+      UPDATE timetable
+      SET ${setClause}
+      WHERE timetable_id = $${Object.keys(updates).length + 1}
+      RETURNING timetable_id id,
+                class_id as class_name,
+                subject_id subject,
+                monday, tuesday, wednesday,
+                thursday, friday, saturday
+    `,
+    values: [...Object.values(updates), timetableId]
+  };
+
+  const { rows } = await pool.query(query);
+  return rows[0];
+};
+
+const addStaffTimeTable = async (staffId, updates) => {
+  const columns = ['staff_id', ...Object.keys(updates)];
+  const values = [staffId, ...Object.values(updates)];
+
+  const query = {
+    text: `
+      INSERT INTO timetable (${columns.join(', ')})
+      VALUES (${columns.map((_, i) => `$${i + 1}`).join(', ')})
+      RETURNING timetable_id id,
+                class_id as class_name,
+                subject_id subject,
+                monday, tuesday, wednesday,
+                thursday, friday, saturday
+    `,
+    values
+  };
+
+  const { rows } = await pool.query(query);
+  return rows[0];
+};
+
+const deleteStaffTimeTable = async (timetableId) => {
+  const query = {
+    text: `
+      DELETE FROM timetable
+      WHERE timetable_id = $1
+      RETURNING timetable_id
+    `,
+    values: [timetableId]
+  };
+
+  const { rows } = await pool.query(query);
+  return rows[0];
+};
+
 
 export {
   createStaff,
@@ -738,5 +807,9 @@ export {
   getStudents,
   getClassAssigned,
   getExperienceByStaffId,
-  getStaffTimetableById
+  getStaffTimetableById,
+  getTimeTableByKeys,
+  updateStaffTimeTable,
+  addStaffTimeTable,
+  deleteStaffTimeTable
 };

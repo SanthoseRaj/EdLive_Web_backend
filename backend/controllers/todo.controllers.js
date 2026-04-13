@@ -36,10 +36,11 @@ export const getAllTodos = async (req, res) => {
     try {
       const { date, title, description, completed,classid,subjectid } = req.body;
       const updatedTodo = await todo.updateTodo(
-        req.params.id,
-        req.user.id,
-        { date, title, description, completed,classid,subjectid }
-      );
+  req.params.id,
+  req.user.id,
+  req.user.usertype,   // 🔥 Pass userType
+  { date, title, description, completed, classid, subjectid }
+);
       
       if (!updatedTodo) {
         return res.status(404).json({ error: 'Todo not found' });

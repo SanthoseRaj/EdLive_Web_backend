@@ -434,6 +434,7 @@ const getAllRoutes = async () => {
     SELECT 
       r.id,
       r.name,
+      r.description,
       r.start_point,
       r.end_point,
       COUNT(s.id) as stop_count,
@@ -442,7 +443,7 @@ const getAllRoutes = async () => {
     LEFT JOIN bus_route_stops s ON r.id = s.route_id
     LEFT JOIN bus_assignments a ON r.id = a.route_id AND a.is_active = true
     LEFT JOIN transport_buses b ON a.bus_id = b.id
-    GROUP BY r.id, b.bus_number
+    GROUP BY r.id, r.description, b.bus_number
     ORDER BY r.name;
   `;
   const { rows } = await pool.query(query);

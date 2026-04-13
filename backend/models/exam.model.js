@@ -265,26 +265,25 @@ static async delete(id) {
 static async getAdminStats({ classId, className, startDate, endDate }) {
   let query = `
     SELECT 
-      round(AVG(er.percentage),2) as average_percentage,
-      COUNT(er.id) as total_records
+      ROUND(AVG(er.percentage), 2) AS average_percentage,
+      COUNT(er.id) AS total_records
     FROM exam_results er
     JOIN exams e ON er.exam_id = e.id
-    LEFT JOIN classmaster cm ON e.class_id::int = cm.id
+    LEFT JOIN classmaster cm ON e.class_id = cm.id::varchar
     WHERE 1=1
   `;
   
   const params = [];
   let paramCount = 0;
 
-  // Filter by specific Class ID (Class + Section)
   if (classId) {
-    query += ` AND e.class_id = $${++paramCount}`;
-    params.push(classId);
+    query += ` AND e.class_id = ANY(string_to_array($${++paramCount}, ',')::varchar[])`;
+    params.push(classId.toString());
   }
-  // OR Filter by Class Name (All Sections)
+
   else if (className) {
-    query += ` AND cm.class = $${++paramCount}`;
-    params.push(className);
+    query += ` AND cm.class = ANY(string_to_array($${++paramCount}, ',')::varchar[])`;
+    params.push(className.toString());
   }
 
   if (startDate) {
@@ -297,8 +296,19 @@ static async getAdminStats({ classId, className, startDate, endDate }) {
     params.push(endDate);
   }
 
+  // 🔥 Print Query + Params
+  console.log("Final Query:");
+  console.log(query);
+  console.log("Params:", params);
+
   const { rows } = await pool.query(query, params);
-  return rows[0];
+
+  return {
+    average_percentage: rows[0]?.average_percentage || 0,
+    total_records: parseInt(rows[0]?.total_records || 0)
+  };
 }
+
+
 }
 export  { Exam, ExamType,ExamResult };
