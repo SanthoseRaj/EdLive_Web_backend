@@ -129,13 +129,19 @@ app.use('/content', express.static(path.join(__dirname, 'content'), {
 //    console.log(req.cookies);
 // })
 
-if (process.env.NODE_ENV === "production") {
-	app.use(express.static(path.join(__dirname, "/frontend/dist")));
+// if (process.env.NODE_ENV === "production") {
+// 	app.use(express.static(path.join(__dirname, "/frontend/dist")));
 
-	app.use("*", (req, res) => {
-		res.sendFile(path.resolve(__dirname, "frontend", "dist", "index.html"));
-	});
-}
+// 	app.use("*", (req, res) => {
+// 		res.sendFile(path.resolve(__dirname, "frontend", "dist", "index.html"));
+// 	});
+// }
+
+app.get("/", (req, res) => {
+  res.send("EdLive Backend API is running 🚀");
+});
+
+
 app.listen(PORT, () => {
     console.log(`Server is running in port ${process.env.REACT_APP_API_URL}:${PORT}`);
     console.log(`Swagger docs available at ${process.env.REACT_APP_API_URL}:${PORT}/api-docs`);
