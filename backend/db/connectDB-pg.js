@@ -24,7 +24,11 @@ const poolConfig = {
   max: parseInt(process.env.PG_MAX_CONNECTIONS) || 20,
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 2000,
-  allowExitOnIdle: true
+  allowExitOnIdle: true,
+
+  ssl: {
+    rejectUnauthorized: false,
+  },
 };
 
 // Create the connection pool
